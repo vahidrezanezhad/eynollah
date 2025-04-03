@@ -1570,6 +1570,108 @@ def return_deskew_slop(img_patch_org, sigma_des,n_tot_angles=100,
 
     return angle
 
+def return_deskew_slop_old_mp(img_patch_org, sigma_des,n_tot_angles=100,
+                       main_page=False, logger=None, plotter=None, map=map):
+    if main_page and plotter:
+        plotter.save_plot_of_textline_density(img_patch_org)
+
+    img_int=np.zeros((img_patch_org.shape[0],img_patch_org.shape[1]))
+    img_int[:,:]=img_patch_org[:,:]#img_patch_org[:,:,0]
+
+    max_shape=np.max(img_int.shape)
+    img_resized=np.zeros((int( max_shape*(1.1) ) , int( max_shape*(1.1) ) ))
+
+    onset_x=int((img_resized.shape[1]-img_int.shape[1])/2.)
+    onset_y=int((img_resized.shape[0]-img_int.shape[0])/2.)
+
+    #img_resized=np.zeros((int( img_int.shape[0]*(1.8) ) , int( img_int.shape[1]*(2.6) ) ))
+    #img_resized[ int( img_int.shape[0]*(.4)):int( img_int.shape[0]*(.4))+img_int.shape[0] , int( img_int.shape[1]*(.8)):int( img_int.shape[1]*(.8))+img_int.shape[1] ]=img_int[:,:]
+    img_resized[ onset_y:onset_y+img_int.shape[0] , onset_x:onset_x+img_int.shape[1] ]=img_int[:,:]
+
+    #print(img_resized.shape,'img_resizedshape')
+    #plt.imshow(img_resized)
+    #plt.show()
+    if main_page and img_patch_org.shape[1] > img_patch_org.shape[0]:
+        #plt.imshow(img_resized)
+        #plt.show()
+        angles = np.array([-45, 0, 45, 90,])
+        angle = get_smallest_skew_omp(img_resized, sigma_des, angles, map=map, logger=logger, plotter=plotter)
+
+        angles = np.linspace(angle - 22.5, angle + 22.5, n_tot_angles)
+        angle = get_smallest_skew_omp(img_resized, sigma_des, angles, map=map, logger=logger, plotter=plotter)
+    elif main_page:
+        #plt.imshow(img_resized)
+        #plt.show()
+        angles = np.linspace(-12, 12, n_tot_angles)#np.array([0 , 45 , 90 , -45])
+        angle = get_smallest_skew_omp(img_resized, sigma_des, angles, map=map, logger=logger, plotter=plotter)
+
+        early_slope_edge=11
+        if abs(angle) > early_slope_edge:
+            if angle < 0:
+                angles = np.linspace(-90, -12, n_tot_angles)
+            else:
+                angles = np.linspace(90, 12, n_tot_angles)
+            angle = get_smallest_skew_omp(img_resized, sigma_des, angles, map=map, logger=logger, plotter=plotter)
+    else:
+        angles = np.linspace(-25, 25, int(0.5 * n_tot_angles) + 10)
+        angle = get_smallest_skew_omp(img_resized, sigma_des, angles, map=map, logger=logger, plotter=plotter)
+
+        early_slope_edge=22
+        if abs(angle) > early_slope_edge:
+            if angle < 0:
+                angles = np.linspace(-90, -25, int(0.5 * n_tot_angles) + 10)
+            else:
+                angles = np.linspace(90, 25, int(0.5 * n_tot_angles) + 10)
+            angle = get_smallest_skew_omp(img_resized, sigma_des, angles, map=map, logger=logger, plotter=plotter)
+
+    return angle
+def do_image_rotation_omp(queue_of_all_params,angels_per_process, img_resized, sigma_des):
+    angels_per_each_subprocess = []
+    index_angles = []
+    for mv in range(len(angels_per_process)):
+        img_rot=rotate_image(img_resized,angels_per_process[mv])
+        img_rot[img_rot!=0]=1
+        try:
+            var_spectrum=find_num_col_deskew(img_rot,sigma_des,20.3  )
+        except:
+            var_spectrum=0
+        angels_per_each_subprocess.append(var_spectrum)
+        index_angles.append(angels_per_process[mv])
+            
+    queue_of_all_params.put([angels_per_each_subprocess, index_angles])
+def get_smallest_skew_omp(img, sigma_des, angles, plotter=None):
+    num_cores = cpu_count()
+    queue_of_all_params = Queue()
+    processes = []
+    nh = np.linspace(0, len(angels), num_cores + 1)
+
+    for i in range(num_cores):
+        angels_per_process = angels[int(nh[i]) : int(nh[i + 1])]
+        processes.append(Process(target=do_image_rotation_omp, args=(queue_of_all_params, angels_per_process, img_resized, sigma_des)))
+        
+    for i in range(num_cores):
+        processes[i].start()
+
+    var_res=[]
+    all_angles = []
+    for i in range(num_cores):
+        list_all_par = queue_of_all_params.get(True)
+        angles_for_subprocess = list_all_par[0]
+        angles_for_sub_process = list_all_par[1]
+        for j in range(len(angles_for_subprocess)):
+            var_res.append(angles_for_subprocess[j])
+            all_angles.append(angles_for_sub_process[j])
+            
+    for i in range(num_cores):
+        processes[i].join()
+
+    try:
+        var_res=np.array(var_res)
+        ang_int=all_angles[np.argmax(var_res)]
+    except:
+        ang_int=0
+    return ang_int
+    
 def get_smallest_skew(img, sigma_des, angles, logger=None, plotter=None, map=map):
     if logger is None:
         logger = getLogger(__package__)
