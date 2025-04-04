@@ -73,6 +73,7 @@ from .utils.separate_lines import (
     textline_contours_postprocessing,
     separate_lines_new2,
     return_deskew_slop,
+    return_deskew_slop_old_mp,
     do_work_of_slopes_new,
     do_work_of_slopes_new_curved,
     do_work_of_slopes_new_light,
@@ -3043,8 +3044,20 @@ class Eynollah:
 
     def run_deskew(self, textline_mask_tot_ea):
         #print(textline_mask_tot_ea.shape, 'textline_mask_tot_ea deskew')
+        
+        ttest = time.time()
+        slope_deskew = return_deskew_slop_old_mp(cv2.erode(textline_mask_tot_ea, KERNEL, iterations=2), 2, 30, True,
+                                          logger=self.logger, plotter=self.plotter)
+        
+        print("slope deskew by old mp is {} and time spent for deskewing is {} seconds".format(slope_deskew, time.time() - ttest) )
+        
+        ttest = time.time()
         slope_deskew = return_deskew_slop(cv2.erode(textline_mask_tot_ea, KERNEL, iterations=2), 2, 30, True,
                                           map=self.executor.map, logger=self.logger, plotter=self.plotter)
+        
+        print("slope deskew by new mp is {} and time spent for deskewing is {} seconds".format(slope_deskew, time.time() - ttest) )
+        
+
         slope_first = 0
 
         if self.plotter:
