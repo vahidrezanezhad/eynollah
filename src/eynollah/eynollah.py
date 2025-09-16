@@ -73,6 +73,8 @@ from .utils.contour import (
     return_contours_of_interested_region_by_min_size,
     return_contours_of_interested_textline,
     return_parent_contours,
+    dilate_textregion_contours,
+    dilate_textline_contours,
 )
 from .utils.rotate import (
     rotate_image,
@@ -285,7 +287,7 @@ class Eynollah:
         #"/eynollah-full-regions-1column_20210425"
         self.model_region_dir_fully_np = dir_models + "/modelens_full_lay_1__4_3_091124"
         #self.model_region_dir_fully = dir_models + "/eynollah-full-regions-3+column_20210425"
-        self.model_page_dir = dir_models + "/model_ens_page"
+        self.model_page_dir = dir_models + "/model_eynollah_page_extraction_20250915"
         self.model_region_dir_p_ens = dir_models + "/eynollah-main-regions-ensembled_20210425"
         self.model_region_dir_p_ens_light = dir_models + "/eynollah-main-regions_20220314"
         self.model_region_dir_p_ens_light_only_images_extraction = dir_models + "/eynollah-main-regions_20231127_672_org_ens_11_13_16_17_18"
@@ -4076,104 +4078,104 @@ class Eynollah:
             all_found_textline_polygons[j][:,0,0] = con_scaled[:,0, 0]
         return all_found_textline_polygons
 
-    def dilate_textline_contours(self, all_found_textline_polygons):
-        for j in range(len(all_found_textline_polygons)):
-            for ij in range(len(all_found_textline_polygons[j])):
-                con_ind = all_found_textline_polygons[j][ij]
-                area = cv2.contourArea(con_ind)
+    ###def dilate_textline_contours(self, all_found_textline_polygons):
+        ###for j in range(len(all_found_textline_polygons)):
+            ###for ij in range(len(all_found_textline_polygons[j])):
+                ###con_ind = all_found_textline_polygons[j][ij]
+                ###area = cv2.contourArea(con_ind)
 
-                con_ind = con_ind.astype(float)
+                ###con_ind = con_ind.astype(float)
 
-                x_differential = np.diff( con_ind[:,0,0])
-                y_differential = np.diff( con_ind[:,0,1])
+                ###x_differential = np.diff( con_ind[:,0,0])
+                ###y_differential = np.diff( con_ind[:,0,1])
 
-                x_differential = gaussian_filter1d(x_differential, 3)
-                y_differential = gaussian_filter1d(y_differential, 3)
+                ###x_differential = gaussian_filter1d(x_differential, 3)
+                ###y_differential = gaussian_filter1d(y_differential, 3)
 
-                x_min = float(np.min( con_ind[:,0,0] ))
-                y_min = float(np.min( con_ind[:,0,1] ))
+                ###x_min = float(np.min( con_ind[:,0,0] ))
+                ###y_min = float(np.min( con_ind[:,0,1] ))
 
-                x_max = float(np.max( con_ind[:,0,0] ))
-                y_max = float(np.max( con_ind[:,0,1] ))
+                ###x_max = float(np.max( con_ind[:,0,0] ))
+                ###y_max = float(np.max( con_ind[:,0,1] ))
 
-                x_differential_mask_nonzeros = [ ind/abs(ind) if ind!=0 else ind for ind in x_differential]
-                y_differential_mask_nonzeros = [ ind/abs(ind) if ind!=0 else ind for ind in y_differential]
+                ###x_differential_mask_nonzeros = [ ind/abs(ind) if ind!=0 else ind for ind in x_differential]
+                ###y_differential_mask_nonzeros = [ ind/abs(ind) if ind!=0 else ind for ind in y_differential]
 
-                abs_diff=abs(abs(x_differential)- abs(y_differential) )
+                ###abs_diff=abs(abs(x_differential)- abs(y_differential) )
 
-                inc_x = np.zeros(len(x_differential)+1)
-                inc_y = np.zeros(len(x_differential)+1)
+                ###inc_x = np.zeros(len(x_differential)+1)
+                ###inc_y = np.zeros(len(x_differential)+1)
 
-                if (y_max-y_min) <= (x_max-x_min):
-                    dilation_m1 = round(area / (x_max-x_min) * 0.35)
-                else:
-                    dilation_m1 = round(area / (y_max-y_min) * 0.35)
+                ###if (y_max-y_min) <= (x_max-x_min):
+                    ###dilation_m1 = round(area / (x_max-x_min) * 0.35)
+                ###else:
+                    ###dilation_m1 = round(area / (y_max-y_min) * 0.35)
 
-                if dilation_m1>12:
-                    dilation_m1 = 12
-                if dilation_m1<4:
-                    dilation_m1 = 4
-                #print(dilation_m1, 'dilation_m1')
-                dilation_m2 = int(dilation_m1/2.) +1
+                ###if dilation_m1>12:
+                    ###dilation_m1 = 12
+                ###if dilation_m1<4:
+                    ###dilation_m1 = 4
+                ####print(dilation_m1, 'dilation_m1')
+                ###dilation_m2 = int(dilation_m1/2.) +1
 
-                for i in range(len(x_differential)):
-                    if abs_diff[i]==0:
-                        inc_x[i+1] = dilation_m2*(-1*y_differential_mask_nonzeros[i])
-                        inc_y[i+1] = dilation_m2*(x_differential_mask_nonzeros[i])
-                    elif abs_diff[i]!=0 and x_differential_mask_nonzeros[i]==0 and y_differential_mask_nonzeros[i]!=0:
-                        inc_x[i+1]= dilation_m1*(-1*y_differential_mask_nonzeros[i])
-                    elif abs_diff[i]!=0 and x_differential_mask_nonzeros[i]!=0 and y_differential_mask_nonzeros[i]==0:
-                        inc_y[i+1] = dilation_m1*(x_differential_mask_nonzeros[i])
+                ###for i in range(len(x_differential)):
+                    ###if abs_diff[i]==0:
+                        ###inc_x[i+1] = dilation_m2*(-1*y_differential_mask_nonzeros[i])
+                        ###inc_y[i+1] = dilation_m2*(x_differential_mask_nonzeros[i])
+                    ###elif abs_diff[i]!=0 and x_differential_mask_nonzeros[i]==0 and y_differential_mask_nonzeros[i]!=0:
+                        ###inc_x[i+1]= dilation_m1*(-1*y_differential_mask_nonzeros[i])
+                    ###elif abs_diff[i]!=0 and x_differential_mask_nonzeros[i]!=0 and y_differential_mask_nonzeros[i]==0:
+                        ###inc_y[i+1] = dilation_m1*(x_differential_mask_nonzeros[i])
 
-                    elif abs_diff[i]!=0 and abs_diff[i]>=3:
-                        if abs(x_differential[i])>abs(y_differential[i]):
-                            inc_y[i+1] = dilation_m1*(x_differential_mask_nonzeros[i])
-                        else:
-                            inc_x[i+1]= dilation_m1*(-1*y_differential_mask_nonzeros[i])
-                    else:
-                        inc_x[i+1] = dilation_m2*(-1*y_differential_mask_nonzeros[i])
-                        inc_y[i+1] = dilation_m2*(x_differential_mask_nonzeros[i])
+                    ###elif abs_diff[i]!=0 and abs_diff[i]>=3:
+                        ###if abs(x_differential[i])>abs(y_differential[i]):
+                            ###inc_y[i+1] = dilation_m1*(x_differential_mask_nonzeros[i])
+                        ###else:
+                            ###inc_x[i+1]= dilation_m1*(-1*y_differential_mask_nonzeros[i])
+                    ###else:
+                        ###inc_x[i+1] = dilation_m2*(-1*y_differential_mask_nonzeros[i])
+                        ###inc_y[i+1] = dilation_m2*(x_differential_mask_nonzeros[i])
 
-                inc_x[0] = inc_x[-1]
-                inc_y[0] = inc_y[-1]
+                ###inc_x[0] = inc_x[-1]
+                ###inc_y[0] = inc_y[-1]
 
-                con_scaled = con_ind*1
+                ###con_scaled = con_ind*1
 
-                con_scaled[:,0, 0] = con_ind[:,0,0] + np.array(inc_x)[:]
-                con_scaled[:,0, 1] = con_ind[:,0,1] + np.array(inc_y)[:]
+                ###con_scaled[:,0, 0] = con_ind[:,0,0] + np.array(inc_x)[:]
+                ###con_scaled[:,0, 1] = con_ind[:,0,1] + np.array(inc_y)[:]
 
-                con_scaled[:,0, 1][con_scaled[:,0, 1]<0] = 0
-                con_scaled[:,0, 0][con_scaled[:,0, 0]<0] = 0
+                ###con_scaled[:,0, 1][con_scaled[:,0, 1]<0] = 0
+                ###con_scaled[:,0, 0][con_scaled[:,0, 0]<0] = 0
 
-                con_ind = con_ind.astype(np.int32)
+                ###con_ind = con_ind.astype(np.int32)
 
-                results = [cv2.pointPolygonTest(con_ind, (con_scaled[ind,0, 0], con_scaled[ind,0, 1]), False)
-                           for ind in range(len(con_scaled[:,0, 1])) ]
-                results = np.array(results)
-                results[results==0] = 1
+                ###results = [cv2.pointPolygonTest(con_ind, (con_scaled[ind,0, 0], con_scaled[ind,0, 1]), False)
+                           ###for ind in range(len(con_scaled[:,0, 1])) ]
+                ###results = np.array(results)
+                ###results[results==0] = 1
 
-                diff_result = np.diff(results)
+                ###diff_result = np.diff(results)
 
-                indices_2 = [ind for ind in range(len(diff_result)) if diff_result[ind]==2]
-                indices_m2 = [ind for ind in range(len(diff_result)) if diff_result[ind]==-2]
+                ###indices_2 = [ind for ind in range(len(diff_result)) if diff_result[ind]==2]
+                ###indices_m2 = [ind for ind in range(len(diff_result)) if diff_result[ind]==-2]
 
-                if results[0]==1:
-                    con_scaled[:indices_m2[0]+1,0, 1] = con_ind[:indices_m2[0]+1,0,1]
-                    con_scaled[:indices_m2[0]+1,0, 0] = con_ind[:indices_m2[0]+1,0,0]
-                    indices_m2 = indices_m2[1:]
+                ###if results[0]==1:
+                    ###con_scaled[:indices_m2[0]+1,0, 1] = con_ind[:indices_m2[0]+1,0,1]
+                    ###con_scaled[:indices_m2[0]+1,0, 0] = con_ind[:indices_m2[0]+1,0,0]
+                    ###indices_m2 = indices_m2[1:]
 
-                if len(indices_2)>len(indices_m2):
-                    con_scaled[indices_2[-1]+1:,0, 1] = con_ind[indices_2[-1]+1:,0,1]
-                    con_scaled[indices_2[-1]+1:,0, 0] = con_ind[indices_2[-1]+1:,0,0]
-                    indices_2 = indices_2[:-1]
+                ###if len(indices_2)>len(indices_m2):
+                    ###con_scaled[indices_2[-1]+1:,0, 1] = con_ind[indices_2[-1]+1:,0,1]
+                    ###con_scaled[indices_2[-1]+1:,0, 0] = con_ind[indices_2[-1]+1:,0,0]
+                    ###indices_2 = indices_2[:-1]
 
-                for ii in range(len(indices_2)):
-                    con_scaled[indices_2[ii]+1:indices_m2[ii]+1,0, 1] = con_scaled[indices_2[ii],0, 1]
-                    con_scaled[indices_2[ii]+1:indices_m2[ii]+1,0, 0] = con_scaled[indices_2[ii],0, 0]
+                ###for ii in range(len(indices_2)):
+                    ###con_scaled[indices_2[ii]+1:indices_m2[ii]+1,0, 1] = con_scaled[indices_2[ii],0, 1]
+                    ###con_scaled[indices_2[ii]+1:indices_m2[ii]+1,0, 0] = con_scaled[indices_2[ii],0, 0]
 
-                all_found_textline_polygons[j][ij][:,0,1] = con_scaled[:,0, 1]
-                all_found_textline_polygons[j][ij][:,0,0] = con_scaled[:,0, 0]
-        return all_found_textline_polygons
+                ###all_found_textline_polygons[j][ij][:,0,1] = con_scaled[:,0, 1]
+                ###all_found_textline_polygons[j][ij][:,0,0] = con_scaled[:,0, 0]
+        ###return all_found_textline_polygons
 
     def filter_contours_inside_a_bigger_one(self,contours, contours_d_ordered, image, marginal_cnts=None, type_contour="textregion"):
         if type_contour=="textregion":
@@ -4587,7 +4589,7 @@ class Eynollah:
 
             all_found_textline_polygons=[ all_found_textline_polygons ]
 
-            all_found_textline_polygons = self.dilate_textregions_contours_textline_version(
+            all_found_textline_polygons = dilate_textline_contours(
                 all_found_textline_polygons)
             all_found_textline_polygons = self.filter_contours_inside_a_bigger_one(
                 all_found_textline_polygons, None, textline_mask_tot_ea, type_contour="textline")
@@ -4864,7 +4866,7 @@ class Eynollah:
 
         #print("text region early 3 in %.1fs", time.time() - t0)
         if self.light_version:
-            contours_only_text_parent = self.dilate_textregions_contours(
+            contours_only_text_parent = dilate_textregion_contours(
                 contours_only_text_parent)
             contours_only_text_parent , contours_only_text_parent_d_ordered = self.filter_contours_inside_a_bigger_one(
                 contours_only_text_parent, contours_only_text_parent_d_ordered, text_only, marginal_cnts=polygons_of_marginals)
@@ -4901,11 +4903,11 @@ class Eynollah:
                     #        boxes_marginals, polygons_of_marginals, polygons_of_marginals, np.array(range(len(polygons_of_marginals))))
                     #all_found_textline_polygons = self.dilate_textlines(all_found_textline_polygons)
                     #####all_found_textline_polygons = self.dilate_textline_contours(all_found_textline_polygons)
-                    all_found_textline_polygons = self.dilate_textregions_contours_textline_version(
+                    all_found_textline_polygons = dilate_textline_contours(
                         all_found_textline_polygons)
                     all_found_textline_polygons = self.filter_contours_inside_a_bigger_one(
                         all_found_textline_polygons, None, textline_mask_tot_ea_org, type_contour="textline")
-                    all_found_textline_polygons_marginals = self.dilate_textregions_contours_textline_version(
+                    all_found_textline_polygons_marginals = dilate_textline_contours(
                         all_found_textline_polygons_marginals)
                     contours_only_text_parent, txt_con_org, conf_contours_textregions, all_found_textline_polygons, contours_only_text_parent_d_ordered, \
                         index_by_text_par_con = self.filter_contours_without_textline_inside(
